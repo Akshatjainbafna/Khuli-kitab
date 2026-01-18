@@ -1,12 +1,9 @@
-import path from 'path'
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   devIndicators: false,
-  webpack: config => {
-    config.resolve.alias['@'] = path.resolve(process.cwd(), 'src')
-    return config
-  }
+
+  // This silences the warning and makes Turbopack use tsconfig paths.
+  turbopack: {}
 }
 
 export default nextConfig
