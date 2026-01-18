@@ -22,6 +22,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { FileUp, FolderUp, Trash2, Globe } from 'lucide-react'
+import { cleanDatabase, uploadFile, ingestDriveFile, ingestGoogleDocument } from '@/lib/api'
 
 interface ChatBarProps {
   onSendMessage: (message: string) => void
@@ -47,7 +48,6 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
 
   const handleClearDatabase = async () => {
     try {
-      const { cleanDatabase } = await import('../lib/api')
       await cleanDatabase()
       alert('Database cleared successfully!')
     } catch (error) {
@@ -66,7 +66,6 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
     if (!file) return
 
     try {
-      const { uploadFile } = await import('../lib/api')
       await uploadFile(file, sessionId)
       alert('File uploaded and ingestion started successfully!')
     } catch (error: any) {
@@ -89,7 +88,6 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
 
     setIsDialogOpen(false)
     try {
-      const { ingestDriveFile, ingestGoogleDocument } = await import('../lib/api')
       if (dialogType === 'file') {
         await ingestDriveFile(dialogValue, sessionId)
         alert('File ingestion started successfully!')

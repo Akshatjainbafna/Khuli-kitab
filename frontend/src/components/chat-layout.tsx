@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChatBar } from './chat-bar'
 import { cn } from '@/lib/utils'
+import { getChatHistory, clearChatHistory, queryBackend } from '@/lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -32,7 +33,6 @@ export default function ChatLayout() {
     // Load History on Mount
     const loadHistory = async () => {
       try {
-        const { getChatHistory } = await import('../lib/api')
         const result = await getChatHistory(storedId)
         if (result.history && result.history.length > 0) {
           setMessages(result.history)
@@ -51,7 +51,6 @@ export default function ChatLayout() {
 
   const handleClearHistory = async () => {
     try {
-      const { clearChatHistory } = await import('../lib/api')
       await clearChatHistory(sessionId)
       setMessages([])
       setIsStarted(false)
@@ -68,7 +67,6 @@ export default function ChatLayout() {
     setMessages(prev => [...prev, newUserMessage])
 
     try {
-      const { queryBackend } = await import('../lib/api')
       const result = await queryBackend(text, sessionId)
 
       // Assuming backend returns { response: "..." }
@@ -144,7 +142,7 @@ export default function ChatLayout() {
       {/* Center Hero vs Bottom Bar */}
       <div
         className={cn(
-          'absolute z-10 bg-[#0d0d0d] inset-x-0 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col items-center',
+          'absolute z-10 bg-[#0d0d0d] inset-x-0 transition-all duration-700 ease-in-out flex flex-col items-center',
           isStarted ? 'bottom-0 translate-y-0' : 'bottom-1/2 translate-y-1/2'
         )}
       >
