@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChatBar } from './chat-bar'
 import { cn } from '@/lib/utils'
-import { getChatHistory, clearChatHistory, queryBackend } from '../lib/api'
+import { getChatHistory, clearChatHistory, queryBackend } from '@/lib/api'
 
 interface Message {
   role: 'user' | 'assistant'

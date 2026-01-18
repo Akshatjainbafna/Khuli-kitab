@@ -22,7 +22,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { FileUp, FolderUp, Trash2, Globe } from 'lucide-react'
-import { cleanDatabase, uploadFile, ingestDriveFile, ingestGoogleDocument } from '../lib/api'
+import { cleanDatabase, uploadFile, ingestDriveFile, ingestGoogleDocument } from '@/lib/api'
 
 interface ChatBarProps {
   onSendMessage: (message: string) => void
