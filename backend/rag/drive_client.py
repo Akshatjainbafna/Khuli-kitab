@@ -9,6 +9,7 @@ Handles interactions with Google Drive API:
 import os
 import io
 import logging
+import re
 from typing import List, Dict, Optional, Any
 from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials
@@ -126,6 +127,46 @@ class GoogleDriveClient:
                 break
                 
         return results
+
+    @staticmethod
+    def extract_id_from_url(input_str: str) -> str:
+        """
+        Extracts Google Drive ID from a full URL or returns the ID if it matches the pattern.
+        Works for folders and files.
+        """
+        # Patterns for files and folders
+        # /d/ID/ or id=ID or folders/ID
+        patterns = [
+            r"/d/([a-zA-Z0-9_-]{25,})",
+            r"id=([a-zA-Z0-9_-]{25,})",
+            r"folders/([a-zA-Z0-9_-]{25,})",
+            r"([a-zA-Z0-9_-]{25,})" # Fallback to just the ID pattern
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, input_str)
+            if match:
+                return match.group(1)
+        
+        return input_str # Return as is if no match (though likely invalid)
+
+    def get_file_metadata(self, file_id: str) -> Dict[str, Any]:
+        """
+        Get metadata for a specific file.
+        
+        Args:
+            file_id: ID of the file to fetch
+            
+        Returns:
+            Dictionary containing file metadata (id, name, mimeType)
+        """
+        try:
+            return self.service.files().get(
+                fileId=file_id,
+                fields='id, name, mimeType'
+            ).execute()
+        except Exception as e:
+            raise ValueError(f"Failed to fetch metadata for file {file_id}: {e}")
 
     def download_file(self, file_id: str, dest_path: str, mime_type: Optional[str] = None):
         """

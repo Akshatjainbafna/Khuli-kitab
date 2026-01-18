@@ -11,5 +11,6 @@ from .document_processor import DocumentProcessor
 from .vector_store import VectorStoreManager
 from .chain import RAGChain
 from .drive_client import GoogleDriveClient
+from .chat_manager import ChatManager
 
-__all__ = ["DocumentProcessor", "VectorStoreManager", "RAGChain", "GoogleDriveClient"]
+__all__ = ["DocumentProcessor", "VectorStoreManager", "RAGChain", "GoogleDriveClient", "ChatManager"]

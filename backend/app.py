@@ -7,6 +7,7 @@ Main FastAPI application with REST API endpoints for:
 - RAG query
 """
 
+from rag import ChatManager
 import os
 # Force disable ChromaDB telemetry before any other imports
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
@@ -16,7 +17,7 @@ import shutil
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from werkzeug.utils import secure_filename
@@ -39,11 +40,19 @@ class DirectoryIngestRequest(BaseModel):
 
 class DriveIngestRequest(BaseModel):
     folder_id: str
+    session_id: Optional[str] = None
+    credentials_path: Optional[str] = "credentials.json"
+    token_path: Optional[str] = "token.json"
+
+class DriveFileIngestRequest(BaseModel):
+    file_id: str
+    session_id: Optional[str] = None
     credentials_path: Optional[str] = "credentials.json"
     token_path: Optional[str] = "token.json"
 
 class QueryRequest(BaseModel):
     question: str
+    session_id: str
     include_sources: bool = False
 
 class QueryResponse(BaseModel):
@@ -122,13 +131,19 @@ def get_rag_chain(
 
 def get_drive_client() -> GoogleDriveClient:
     if "drive_client" not in components:
-        # Note: In a real app, you might want to handle dynamic credentials
-        # For now, we use default paths or environment variables
         components["drive_client"] = GoogleDriveClient(
             credentials_path="credentials.json",
             token_path="token.json"
         )
     return components["drive_client"]
+
+def get_chat_manager() -> ChatManager:
+    if "chat_manager" not in components:
+        components["chat_manager"] = ChatManager(
+            mongodb_uri=Config.MONGODB_URI,
+            db_name=Config.MONGODB_DB_NAME
+        )
+    return components["chat_manager"]
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and \
@@ -147,6 +162,7 @@ async def health_check():
 @app.post("/ingest/file", response_model=IngestResponse)
 async def ingest_file(
     file: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
     doc_processor: DocumentProcessor = Depends(get_document_processor),
     vector_store: VectorStoreManager = Depends(get_vector_store)
 ):
@@ -264,10 +280,11 @@ async def ingest_drive(
     Ingest PDF and Word files from a Google Drive folder.
     """
     try:
+        # Extract ID in case a URL was provided
+        folder_id = drive_client.extract_id_from_url(request.folder_id)
+        
         # List files
-        files = drive_client.list_files_in_folder(request.folder_id)
-        print(files)
-        print(request.folder_id)
+        files = drive_client.list_files_in_folder(folder_id)
         if not files:
              return {
                 "message": "No compatible files found in drive folder",
@@ -276,7 +293,7 @@ async def ingest_drive(
              }
 
         # Create temp directory for downloads
-        temp_dir = os.path.join(Config.UPLOAD_FOLDER, f"drive_{request.folder_id}")
+        temp_dir = os.path.join(Config.UPLOAD_FOLDER, f"drive_{folder_id}")
         os.makedirs(temp_dir, exist_ok=True)
         
         all_ids = []
@@ -316,7 +333,7 @@ async def ingest_drive(
         
         return {
             "message": f"Successfully ingested {processed_count} files from Google Drive",
-            "filename": f"Folder ID: {request.folder_id}",
+            "filename": f"Folder ID: {folder_id}",
             "chunks_created": len(all_ids), # Approximation if chunks not tracked per file here
             "document_ids": all_ids[:20]
         }
@@ -324,25 +341,136 @@ async def ingest_drive(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/ingest/google-drive/file", response_model=IngestResponse)
+async def ingest_drive_file(
+    request: DriveFileIngestRequest,
+    drive_client: GoogleDriveClient = Depends(get_drive_client),
+    doc_processor: DocumentProcessor = Depends(get_document_processor),
+    vector_store: VectorStoreManager = Depends(get_vector_store)
+):
+    """
+    Ingest a single file (PDF, Word, or Google Doc) from Google Drive.
+    """
+    try:
+        # Extract ID in case a URL was provided
+        file_id = drive_client.extract_id_from_url(request.file_id)
+        
+        # Get metadata
+        file_meta = drive_client.get_file_metadata(file_id)
+        file_name = file_meta['name']
+        mime_type = file_meta.get('mimeType')
+        
+        # Check compatibility
+        if 'pdf' not in mime_type and 'document' not in mime_type:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {mime_type}. Only PDFs and Documents are supported."
+            )
+            
+        # Create temp directory
+        temp_dir = os.path.join(Config.UPLOAD_FOLDER, f"drive_file_{file_id}")
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        safe_name = secure_filename(file_name)
+        # For Google Docs, we export to DOCX
+        if mime_type == 'application/vnd.google-apps.document':
+            if not safe_name.endswith('.docx'):
+                safe_name += '.docx'
+                
+        dest_path = os.path.join(temp_dir, safe_name)
+        
+        print(f"Downloading file: {file_name} ({file_id})")
+        drive_client.download_file(file_id, dest_path, mime_type=mime_type)
+        
+        # Process and ingest
+        try:
+            chunks = doc_processor.process_file(dest_path)
+            ids = vector_store.add_documents(chunks)
+            
+            # Cleanup
+            shutil.rmtree(temp_dir)
+            
+            return {
+                "message": f"Successfully ingested file from Google Drive: {file_name}",
+                "filename": file_name,
+                "chunks_created": len(chunks),
+                "document_ids": ids[:10]
+            }
+        except Exception as e:
+            # Cleanup on error
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+            raise e
+            
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/query", response_model=QueryResponse)
 async def query(
     request: QueryRequest,
-    rag_chain: RAGChain = Depends(get_rag_chain)
+    rag_chain: RAGChain = Depends(get_rag_chain),
+    chat_manager: ChatManager = Depends(get_chat_manager)
 ):
     """
-    Query the RAG pipeline.
+    Query the RAG pipeline and save to history.
     """
     try:
+        # Check rate limit (25 req/hour)
+        is_allowed = await chat_manager.check_rate_limit(request.session_id)
+        if not is_allowed:
+            await chat_manager.save_message(request.session_id, "user", request.question)
+            return chat_manager.save_message(request.session_id, "assistant", "You have exceeded the rate limit. Please provide your email id, linkedin profile or any other contact, or get in touch with me on linkedin : https://www.linkedin.com/in/akshat-jain-571435139/ , mail : akshatbjain.aj@gmail.com , contact: +91 9425919685 so we can take this discussion ahead")
+
+        # Save user message
+        await chat_manager.save_message(request.session_id, "user", request.question)
+        
         if request.include_sources:
             result = rag_chain.query_with_sources(request.question)
+            answer = result["answer"]
+            sources = result["sources"]
+            
+            # Save assistant response
+            await chat_manager.save_message(request.session_id, "assistant", answer)
+            
             return {
-                "answer": result["answer"],
-                "sources": result["sources"]
+                "answer": answer,
+                "sources": sources
             }
         else:
             answer = rag_chain.query(request.question)
+            
+            # Save assistant response
+            await chat_manager.save_message(request.session_id, "assistant", answer)
+            
             return {"answer": answer}
         
+    except Exception as e:
+        print(f"Error in query: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/chat/history/{session_id}")
+async def get_history(
+    session_id: str,
+    chat_manager: ChatManager = Depends(get_chat_manager)
+):
+    """Retrieve chat history for a session."""
+    try:
+        history = await chat_manager.get_history(session_id)
+        return {"history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/chat/history/{session_id}")
+async def clear_history(
+    session_id: str,
+    chat_manager: ChatManager = Depends(get_chat_manager)
+):
+    """Clear chat history for a session."""
+    try:
+        await chat_manager.clear_history(session_id)
+        return {"message": "Chat history cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

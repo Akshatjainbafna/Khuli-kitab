@@ -46,3 +46,6 @@ backend/token.json
 # OS
 .DS_Store
 Thumbs.db
+
+frontend/.next
+frontend/node_modules

@@ -35,6 +35,10 @@ class Config:
     # Embedding Model
     GOOGLE_EMBEDDING_MODEL = os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004")
     
+    # MongoDB settings
+    MONGODB_URI = os.getenv("MONGODB_URI")
+    MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "khuli_kitab")
+    
     # ChromaDB settings
     CHROMA_PERSIST_DIRECTORY = os.getenv(
         "CHROMA_PERSIST_DIRECTORY", 
@@ -58,4 +62,6 @@ class Config:
         """Validate required configuration settings."""
         if not cls.GOOGLE_API_KEY:
             raise ValueError("GOOGLE_API_KEY environment variable is required")
+        if not cls.MONGODB_URI:
+            raise ValueError("MONGODB_URI environment variable is required for chat persistence")
         return True
