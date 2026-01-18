@@ -90,6 +90,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.get("/health-render")
+async def health_check():
+    """Health check endpoint for deployment monitoring."""
+    return {"status": "healthy"}
+
 frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 # CORS Middleware
 app.add_middleware(
