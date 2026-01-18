@@ -47,7 +47,7 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
 
   const handleClearDatabase = async () => {
     try {
-      const { cleanDatabase } = await import('@/lib/api')
+      const { cleanDatabase } = await import('../lib/api')
       await cleanDatabase()
       alert('Database cleared successfully!')
     } catch (error) {
@@ -66,7 +66,7 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
     if (!file) return
 
     try {
-      const { uploadFile } = await import('@/lib/api')
+      const { uploadFile } = await import('../lib/api')
       await uploadFile(file, sessionId)
       alert('File uploaded and ingestion started successfully!')
     } catch (error: any) {
@@ -89,7 +89,7 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
 
     setIsDialogOpen(false)
     try {
-      const { ingestDriveFile, ingestGoogleDocument } = await import('@/lib/api')
+      const { ingestDriveFile, ingestGoogleDocument } = await import('../lib/api')
       if (dialogType === 'file') {
         await ingestDriveFile(dialogValue, sessionId)
         alert('File ingestion started successfully!')

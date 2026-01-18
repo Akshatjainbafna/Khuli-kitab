@@ -32,7 +32,7 @@ export default function ChatLayout() {
     // Load History on Mount
     const loadHistory = async () => {
       try {
-        const { getChatHistory } = await import('@/lib/api')
+        const { getChatHistory } = await import('../lib/api')
         const result = await getChatHistory(storedId)
         if (result.history && result.history.length > 0) {
           setMessages(result.history)
@@ -51,7 +51,7 @@ export default function ChatLayout() {
 
   const handleClearHistory = async () => {
     try {
-      const { clearChatHistory } = await import('@/lib/api')
+      const { clearChatHistory } = await import('../lib/api')
       await clearChatHistory(sessionId)
       setMessages([])
       setIsStarted(false)
@@ -68,7 +68,7 @@ export default function ChatLayout() {
     setMessages(prev => [...prev, newUserMessage])
 
     try {
-      const { queryBackend } = await import('@/lib/api')
+      const { queryBackend } = await import('../lib/api')
       const result = await queryBackend(text, sessionId)
 
       // Assuming backend returns { response: "..." }
