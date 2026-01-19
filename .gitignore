@@ -30,9 +30,6 @@ env/
 .env
 .venv
 
-# Database
-backend/chroma_db/
-
 # Credentials and Secrets
 backend/.env
 backend/credentials.json
