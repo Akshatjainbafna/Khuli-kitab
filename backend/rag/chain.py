@@ -73,7 +73,17 @@ Context:
         self._chain = self._build_chain()
     
     def _format_docs(self, docs: List[Document]) -> str:
-        """Format retrieved documents into a string."""
+        """Format retrieved documents into a string and print for debugging."""
+        print(f"\n{'='*20} RETRIEVED CONTEXT {'='*20}")
+        print(f"Found {len(docs)} relevant document chunks:")
+        for i, doc in enumerate(docs):
+            source = doc.metadata.get('source', 'unknown')
+            page = doc.metadata.get('page', 'N/A')
+            print(f"\n[Chunk {i+1}] Source: {source} (Page: {page})")
+            print(f"Content: {doc.page_content[:400]}...")
+            if len(doc.page_content) > 400:
+                print("... (truncated in logs)")
+        print(f"\n{'='*59}\n")
         return "\n\n".join(doc.page_content for doc in docs)
     
     def _build_chain(self):
