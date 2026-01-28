@@ -25,7 +25,7 @@ class VectorStoreManager:
         self,
         persist_directory: str,
         collection_name: str = "documents",
-        embedding_model: str = "models/text-embedding-004",
+        embedding_model: str = "models/gemini-embedding-001",
         google_api_key: Optional[str] = None
     ):
         """
