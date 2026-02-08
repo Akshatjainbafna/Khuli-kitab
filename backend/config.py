@@ -45,6 +45,7 @@ class Config:
         os.path.join(os.path.dirname(__file__), "chroma_db")
     )
     CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "documents")
+    CHROMA_MEMORY_COLLECTION_NAME = os.getenv("CHROMA_MEMORY_COLLECTION_NAME", "chat_history")
     
     # Document processing settings
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1000))

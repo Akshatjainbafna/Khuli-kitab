@@ -124,12 +124,25 @@ def get_vector_store() -> VectorStoreManager:
         )
     return components["vector_store"]
 
+def get_memory_vector_store() -> VectorStoreManager:
+    """Get the vector store for episodic memory."""
+    if "memory_vector_store" not in components:
+        components["memory_vector_store"] = VectorStoreManager(
+            persist_directory=Config.CHROMA_PERSIST_DIRECTORY,
+            collection_name=Config.CHROMA_MEMORY_COLLECTION_NAME,
+            embedding_model=Config.GOOGLE_EMBEDDING_MODEL,
+            google_api_key=Config.GOOGLE_API_KEY
+        )
+    return components["memory_vector_store"]
+
 def get_rag_chain(
-    vector_store: VectorStoreManager = Depends(get_vector_store)
+    vector_store: VectorStoreManager = Depends(get_vector_store),
+    memory_vector_store: VectorStoreManager = Depends(get_memory_vector_store)
 ) -> RAGChain:
     if "rag_chain" not in components:
         components["rag_chain"] = RAGChain(
             vector_store_manager=vector_store,
+            memory_vector_store=memory_vector_store,
             model_name=Config.GOOGLE_MODEL,
             google_api_key=Config.GOOGLE_API_KEY
         )
@@ -143,11 +156,14 @@ def get_drive_client() -> GoogleDriveClient:
         )
     return components["drive_client"]
 
-def get_chat_manager() -> ChatManager:
+def get_chat_manager(
+    memory_vector_store: VectorStoreManager = Depends(get_memory_vector_store)
+) -> ChatManager:
     if "chat_manager" not in components:
         components["chat_manager"] = ChatManager(
             mongodb_uri=Config.MONGODB_URI,
-            db_name=Config.MONGODB_DB_NAME
+            db_name=Config.MONGODB_DB_NAME,
+            memory_vector_store=memory_vector_store
         )
     return components["chat_manager"]
 
@@ -433,7 +449,7 @@ async def query(
         await chat_manager.save_message(request.session_id, "user", request.question)
         
         if request.include_sources:
-            result = rag_chain.query_with_sources(request.question)
+            result = rag_chain.query_with_sources(request.question, session_id=request.session_id)
             answer = result["answer"]
             sources = result["sources"]
             
@@ -445,7 +461,12 @@ async def query(
                 "sources": sources
             }
         else:
-            answer = rag_chain.query(request.question)
+            # Fetch recent history (Short-term memory)
+            # We want the last few users (and not the assistant's responses) messages to provide immediate context
+            recent_history = await chat_manager.get_history(request.session_id, limit=6, order="desc", role="user")
+            
+            # Pass session_id to enable episodic memory filtering
+            answer = rag_chain.query(request.question, chat_history=recent_history, session_id=request.session_id)
             
             # Save assistant response
             await chat_manager.save_message(request.session_id, "assistant", answer)

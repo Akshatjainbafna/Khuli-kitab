@@ -207,3 +207,22 @@ class VectorStoreManager:
         """
         search_kwargs = search_kwargs or {"k": 4}
         return self.vector_store.as_retriever(search_kwargs=search_kwargs)
+
+    def delete_documents(self, filter: Optional[dict] = None) -> None:
+        """
+        Delete documents from the collection based on a filter.
+        
+        Args:
+            filter: Metadata filter dictionary (e.g., {"session_id": "123"})
+        """
+        if not filter:
+            print("No filter provided for deletion. Skipping to prevent accidental data loss.")
+            return
+
+        try:
+            # Access the underlying Chroma collection directly to delete by metadata
+            # self.vector_store._collection is the chromadb.api.models.Collection.Collection
+            self.vector_store._collection.delete(where=filter)
+            print(f"Deleted documents matching filter: {filter}")
+        except Exception as e:
+            print(f"Error deleting documents: {e}")
