@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+khuliKitabEnv/
+venv/
+.env
+.venv
+chroma_db/
+uploads/
+.git
+.gitignore
+*.md
+credentials.json
+token.json

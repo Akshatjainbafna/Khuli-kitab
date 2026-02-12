@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    container_name: khuli-kitab-backend
+    ports:
+      - '5000:5000'
+    env_file:
+      - ./backend/.env
+    volumes:
+      - backend-chroma:/app/chroma_db
+      - backend-uploads:/app/uploads
+    restart: unless-stopped
+
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     args:
+  #       NEXT_PUBLIC_API_URL: http://localhost:5000
+  #       NEXT_PUBLIC_ENVIRONMENT: prod
+  #   container_name: khuli-kitab-frontend
+  #   ports:
+  #     - '3000:3000'
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
+
+volumes:
+  backend-chroma:
+  backend-uploads:
