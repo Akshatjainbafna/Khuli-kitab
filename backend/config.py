@@ -42,7 +42,7 @@ class Config:
     # ChromaDB settings
     CHROMA_PERSIST_DIRECTORY = os.getenv(
         "CHROMA_PERSIST_DIRECTORY", 
-        os.path.join(os.path.dirname(__file__), "chroma_db")
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "chroma_db"))
     )
     CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "documents")
     CHROMA_MEMORY_COLLECTION_NAME = os.getenv("CHROMA_MEMORY_COLLECTION_NAME", "chat_history")
@@ -54,7 +54,7 @@ class Config:
     # Upload settings
     UPLOAD_FOLDER = os.getenv(
         "UPLOAD_FOLDER",
-        os.path.join(os.path.dirname(__file__), "uploads")
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "uploads"))
     )
     ALLOWED_EXTENSIONS = {"pdf", "txt", "docx", "md"}
     

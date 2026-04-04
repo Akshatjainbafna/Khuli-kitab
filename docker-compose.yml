@@ -7,8 +7,10 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - backend-chroma:/app/chroma_db
-      - backend-uploads:/app/uploads
+      - ./backend/chroma_db:/app/chroma_db
+      - ./backend/uploads:/app/uploads
+      - ./backend/credentials.json:/app/credentials.json
+      - ./backend/token.json:/app/token.json
     restart: unless-stopped
 
   # frontend:
@@ -24,6 +26,4 @@ services:
   #     - backend
   #   restart: unless-stopped
 
-volumes:
-  backend-chroma:
-  backend-uploads:
+# Named volumes are replaced with bind mounts
