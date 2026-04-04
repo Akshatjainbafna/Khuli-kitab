@@ -127,6 +127,46 @@ npm run dev
 
 ---
 
+## 🚢 Deployment (CI/CD)
+
+GitHub Actions deploys the app to an **OCI (Oracle Cloud) compute instance** over SSH.
+
+### Triggers
+
+- **Push to `main`** — deploys automatically.
+- **Manual** — run the "Deploy to OCI" workflow from the Actions tab.
+
+### GitHub Secrets
+
+In **Settings → Secrets and variables → Actions**, add:
+
+| Secret                | Description                                      |
+| :-------------------- | :----------------------------------------------- |
+| `OCI_HOST`            | OCI instance IP or hostname (e.g. `1.2.3.4`)    |
+| `OCI_SSH_USER`       | SSH user (e.g. `ubuntu` or `opc`)                |
+| `OCI_SSH_PRIVATE_KEY`| Full contents of the private key for SSH login   |
+
+### OCI instance setup
+
+1. **Clone the repo** on the instance (e.g. at `/opt/khuli-kitab`):
+
+   ```bash
+   sudo mkdir -p /opt && sudo git clone https://github.com/YOUR_ORG/Khuli-kitab.git /opt/khuli-kitab
+   ```
+
+2. **Install Docker & Docker Compose v2** on the instance.
+
+3. **Backend env** — ensure `/opt/khuli-kitab/backend/.env` exists on the server with `GOOGLE_API_KEY`, `MONGODB_URI`, etc. (see Setup above).
+
+4. **Optional:** To use a different app path, set the `OCI_APP_PATH` env in `.github/workflows/deploy.yml` (default: `/opt/khuli-kitab`).
+
+### What gets deployed
+
+- **Backend** — deployed on every run (Docker build + `docker compose up -d backend`).
+- **Frontend** — workflow includes a commented-out frontend deploy step; uncomment it in `.github/workflows/deploy.yml` when you want to deploy the frontend too.
+
+---
+
 ## 🛡️ Rate Limiting & Auto-Response
 
 The system allows **25 requests per hour** per unique browser session. When the limit is reached, it automatically responds with:

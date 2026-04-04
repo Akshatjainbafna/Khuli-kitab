@@ -1,0 +1,44 @@
+name: Deploy to OCI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  OCI_APP_PATH: /home/ubuntu/Khuli-kitab
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy backend via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_SSH_USER }}
+          key: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            APP_PATH="${{ env.OCI_APP_PATH }}"
+            cd "$APP_PATH" || { echo "App path not found"; exit 1; }
+
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "🧹 Stopping old container..."
+            docker compose down backend || true
+
+            echo "🔨 Building backend..."
+            docker compose build backend --no-cache
+
+            echo "🚀 Starting backend..."
+            docker compose up -d backend
+
+            echo "🧽 Cleaning up..."
+            docker image prune -f
+
+            echo "✅ Deployment complete"
