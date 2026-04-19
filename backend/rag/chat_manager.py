@@ -86,3 +86,46 @@ class ChatManager:
             "timestamp": {"$gte": cutoff}
         })
         return count < limit
+
+    async def search_chat_with_followup(self, query: str, limit: int = 50, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Find user messages matching the query phrase and their immediate successors.
+        Returns a flat list of interleaved messages.
+        """
+        # Build filter
+        query_filter: Dict[str, Any] = {
+            "role": "user",
+            "content": {"$regex": query, "$options": "i"}
+        }
+        if session_id:
+            query_filter["session_id"] = session_id
+
+        # Find matching user messages
+        cursor = self.chats.find(query_filter).sort("timestamp", 1).limit(limit)
+        
+        history = []
+        async for doc in cursor:
+            # Add the matching user message
+            history.append({
+                "role": doc["role"],
+                "content": doc["content"],
+                "timestamp": doc["timestamp"].isoformat() if isinstance(doc["timestamp"], datetime) else doc["timestamp"]
+            })
+            
+            # Find the immediate next message in the same session
+            next_doc = await self.chats.find_one(
+                {
+                    "session_id": doc["session_id"],
+                    "timestamp": {"$gt": doc["timestamp"]}
+                },
+                sort=[("timestamp", 1)]
+            )
+            
+            if next_doc:
+                history.append({
+                    "role": next_doc["role"],
+                    "content": next_doc["content"],
+                    "timestamp": next_doc["timestamp"].isoformat() if isinstance(next_doc["timestamp"], datetime) else next_doc["timestamp"]
+                })
+                
+        return history

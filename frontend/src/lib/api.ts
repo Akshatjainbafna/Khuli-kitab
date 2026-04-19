@@ -139,3 +139,20 @@ export async function clearChatHistory(sessionId: string) {
     }
 }
 
+export async function searchChatHistory(query: string, sessionId?: string) {
+    try {
+        const url = new URL(`${API_URL}/search/chat/${encodeURIComponent(query)}`);
+        if (sessionId) {
+            url.searchParams.append("session_id", sessionId);
+        }
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("API Error (Search History):", error);
+        throw error;
+    }
+}
+

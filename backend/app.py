@@ -484,7 +484,21 @@ async def get_history(
 ):
     """Retrieve chat history for a session."""
     try:
-        history = await chat_manager.get_history(session_id)
+        history = await chat_manager.get_history(session_id, limit=100, order="desc")
+        history.reverse()
+        return {"history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search/chat/{query}")
+async def search_chat(
+    query: str,
+    session_id: Optional[str] = None,
+    chat_manager: ChatManager = Depends(get_chat_manager)
+):
+    """Retrieve chat history for a session."""
+    try:
+        history = await chat_manager.search_chat_with_followup(query, session_id=session_id, limit=100)
         return {"history": history}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

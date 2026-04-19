@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { SendHorizonal, Plus, Download } from 'lucide-react'
+import { SendHorizonal, Plus, Download, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { FileUp, FolderUp, Trash2, Globe } from 'lucide-react'
 import { cleanDatabase, uploadFile, ingestDriveFile, ingestGoogleDocument } from '@/lib/api'
+import { SearchDialog } from './search-dialog'
 
 interface ChatBarProps {
   onSendMessage: (message: string) => void
@@ -34,6 +35,7 @@ interface ChatBarProps {
 export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }: ChatBarProps) {
   const [input, setInput] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [dialogValue, setDialogValue] = useState('')
   const [dialogType, setDialogType] = useState<'file' | 'folder' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -80,6 +82,10 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
     setDialogType('folder')
     setDialogValue('')
     setIsDialogOpen(true)
+  }
+
+  const handleSearchChatHistory = () => {
+    setIsSearchOpen(true)
   }
 
   const handleDialogSubmit = async (e: React.FormEvent) => {
@@ -162,6 +168,14 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-white/5" />
               <DropdownMenuItem
+                onClick={handleSearchChatHistory}
+                className="flex items-center gap-2 rounded-xl focus:bg-white/10 cursor-pointer px-2 py-2"
+              >
+                <Search size={16} />
+                <span>Search Chat History</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuItem
                 onClick={handleClearDatabase}
                 className="flex items-center gap-2 rounded-xl focus:bg-red-500/10 text-red-400 focus:text-red-400 cursor-pointer px-2 py-2"
               >
@@ -213,7 +227,7 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
                 size="icon"
                 className="h-10 w-10 sm:h-12 sm:w-12 rounded-[1.5rem] sm:rounded-[1.75rem] transition-colors hover:bg-white/10 shrink-0"
               >
-                <Download className="h-6 w-6 sm:h-8 sm:w-8 text-zinc-400" />
+                <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-zinc-400" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -226,6 +240,13 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
               >
                 <Download size={16} />
                 <span>Download Resume</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleSearchChatHistory}
+                className="flex items-center gap-2 rounded-xl focus:bg-white/10 cursor-pointer px-2 py-2"
+              >
+                <Search size={16} />
+                <span>Search Chat History</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -285,6 +306,11 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
           </form>
         </DialogContent>
       </Dialog>
+      <SearchDialog
+        isOpen={isSearchOpen}
+        onOpenChange={setIsSearchOpen}
+        sessionId={sessionId}
+      />
     </div>
   )
 }
