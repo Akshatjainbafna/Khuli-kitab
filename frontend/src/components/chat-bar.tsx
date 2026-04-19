@@ -235,7 +235,7 @@ export function ChatBar({ onSendMessage, onClearHistory, sessionId, isInitial }:
               className="w-56 bg-zinc-900/95 border-white/10 text-zinc-100 backdrop-blur-xl rounded-2xl p-2 z-50"
             >
               <DropdownMenuItem
-                onClick={() => window.open('/Akshat Resume Jan 26 with Picture.pdf', '_blank')}
+                onClick={() => window.open('/Akshat Resume April 26.pdf', '_blank')}
                 className="flex items-center gap-2 rounded-xl cursor-pointer px-2 py-2"
               >
                 <Download size={16} />
