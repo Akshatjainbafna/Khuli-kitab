@@ -55,6 +55,21 @@ class QueryRequest(BaseModel):
     session_id: str
     include_sources: bool = False
 
+class ChartMessageRequest(BaseModel):
+    chart_id: str
+
+# Chip-triggered chart messages. Keep in sync with CHARTS in frontend/src/data/profile.ts
+CHART_QUESTIONS = {
+    "day": "What does a typical day look like for you?",
+    "skills": "How would you rate your skills?",
+    "values": "What are your values and how self-aware are you?",
+    "process": "How do you plan and execute a task?",
+    "experience": "What is your experience and which domains have you worked in?",
+    "ai": "What do you know in AI?",
+    "looking-for": "What kind of role are you looking for?",
+    "projects": "What projects are you proud of, and what impact did they have?",
+}
+
 class QueryResponse(BaseModel):
     answer: str
     sources: Optional[List[Dict[str, Any]]] = None
@@ -476,6 +491,26 @@ async def query(
     except Exception as e:
         print(f"Error in query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat/chart/{session_id}")
+async def save_chart_message(
+    session_id: str,
+    request: ChartMessageRequest,
+    chat_manager: ChatManager = Depends(get_chat_manager)
+):
+    """
+    Save a chip-triggered chart exchange to history without calling the LLM.
+    Only known chart ids are accepted; the stored text is built server-side.
+    """
+    question = CHART_QUESTIONS.get(request.chart_id)
+    if question is None:
+        raise HTTPException(status_code=400, detail="Unknown chart id")
+    if not await chat_manager.check_chart_limit(session_id):
+        raise HTTPException(status_code=429, detail="Too many chart requests")
+
+    await chat_manager.save_message(session_id, "user", question, save_to_vector_store=False, kind="chart")
+    await chat_manager.save_message(session_id, "assistant", f"```chart:{request.chart_id}```", save_to_vector_store=False, kind="chart")
+    return {"message": "saved"}
 
 @app.get("/chat/history/{session_id}")
 async def get_history(

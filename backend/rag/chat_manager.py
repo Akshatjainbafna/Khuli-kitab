@@ -13,8 +13,11 @@ class ChatManager:
         self.chats = self.db.chats
         self.memory_vector_store = memory_vector_store
 
-    async def save_message(self, session_id: str, role: str, content: str, save_to_vector_store: bool = True):
-        """Save a single message to the chat history and memory vector store."""
+    async def save_message(self, session_id: str, role: str, content: str, save_to_vector_store: bool = True, kind: Optional[str] = None):
+        """Save a single message to the chat history and memory vector store.
+
+        `kind="chart"` marks chip-triggered chart messages, which don't count towards the query rate limit.
+        """
         # 1. Save to MongoDB (Short-term / Log)
         message = {
             "session_id": session_id,
@@ -22,6 +25,8 @@ class ChatManager:
             "content": content,
             "timestamp": datetime.utcnow()
         }
+        if kind:
+            message["kind"] = kind
         await self.chats.insert_one(message)
         
         # 2. Save to Vector Store (Episodic Memory)
@@ -83,6 +88,18 @@ class ChatManager:
         count = await self.chats.count_documents({
             "session_id": session_id,
             "role": "user",
+            "kind": {"$ne": "chart"},
+            "timestamp": {"$gte": cutoff}
+        })
+        return count < limit
+
+    async def check_chart_limit(self, session_id: str, limit: int = 60, window_hours: int = 1) -> bool:
+        """Separate cap for chip-triggered chart messages so the endpoint can't be used to flood history."""
+        cutoff = datetime.utcnow() - timedelta(hours=window_hours)
+        count = await self.chats.count_documents({
+            "session_id": session_id,
+            "role": "user",
+            "kind": "chart",
             "timestamp": {"$gte": cutoff}
         })
         return count < limit

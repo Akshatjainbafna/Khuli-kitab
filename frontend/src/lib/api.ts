@@ -156,3 +156,19 @@ export async function searchChatHistory(query: string, sessionId?: string) {
     }
 }
 
+
+// Saves a chip-triggered chart exchange to history. The backend only accepts a known
+// chart id and writes the canned question + chart marker itself (no LLM call).
+export async function saveChartMessage(sessionId: string, chartId: string) {
+    const response = await fetch(`${API_URL}/chat/chart/${sessionId}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ chart_id: chartId }),
+    });
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+}

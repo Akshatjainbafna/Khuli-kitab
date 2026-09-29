@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter, Outfit, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
     subsets: ["latin"],
     variable: "--font-inter",
+});
+
+const serif = Instrument_Serif({
+    subsets: ["latin"],
+    weight: "400",
+    style: ["normal", "italic"],
+    variable: "--font-serif",
 });
 
 const outfit = Outfit({
@@ -27,7 +34,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
-            <body className={`${inter.variable} ${outfit.variable} antialiased`}>
+            <body className={`${inter.variable} ${outfit.variable} ${serif.variable} antialiased`}>
                 {children}
             </body>
         </html>

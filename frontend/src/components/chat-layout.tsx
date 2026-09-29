@@ -1,14 +1,54 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { ArrowUpRight, BookOpen, CalendarClock, Compass, Gauge, Rocket, Target } from 'lucide-react'
 import { ChatBar } from './chat-bar'
+import { ChartEmbed } from './profile/chart-embed'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { getChatHistory, clearChatHistory, queryBackend } from '@/lib/api'
+import { getChatHistory, clearChatHistory, queryBackend, saveChartMessage } from '@/lib/api'
+import { splitChartMarkers } from '@/lib/chart-markers'
+import { CHARTS, HERO_CHART_IDS, getChart, type ChartId } from '@/data/profile'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
+}
+
+const CHIP_ICONS: Partial<Record<ChartId, React.ComponentType<{ className?: string }>>> = {
+  skills: Gauge,
+  day: CalendarClock,
+  projects: Rocket,
+  'looking-for': Target
+}
+
+const chartMarker = (id: ChartId) => '```chart:' + id + '```'
+
+function AssistantMessage({ content }: { content: string }) {
+  const segments = splitChartMarkers(content)
+  // A message that is only a marker came from a chip: show the curated intro/takeaway
+  const canned = segments.length === 1 && segments[0].type === 'chart'
+  return (
+    <div className="flex w-full flex-col gap-4">
+      {segments.map((s, i) =>
+        s.type === 'chart' ? (
+          <ChartEmbed key={i} id={s.id} canned={canned} />
+        ) : (
+          <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>
+            {s.text}
+          </ReactMarkdown>
+        )
+      )}
+    </div>
+  )
 }
 
 export default function ChatLayout() {
@@ -30,6 +70,9 @@ export default function ChatLayout() {
     }
     setSessionId(storedId)
 
+    // "Ask me about this" links from /about arrive as /?ask=<question>
+    const ask = new URLSearchParams(window.location.search).get('ask')
+
     // Load History on Mount
     const loadHistory = async () => {
       try {
@@ -41,8 +84,13 @@ export default function ChatLayout() {
       } catch (error) {
         console.error('Failed to load history:', error)
       }
+      if (ask) {
+        window.history.replaceState(null, '', '/')
+        sendMessage(ask, storedId)
+      }
     }
     loadHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -60,14 +108,14 @@ export default function ChatLayout() {
     }
   }
 
-  const handleSendMessage = async (text: string) => {
-    if (!isStarted) setIsStarted(true)
+  const sendMessage = async (text: string, sid: string) => {
+    setIsStarted(true)
 
     const newUserMessage: Message = { role: 'user', content: text }
     setMessages(prev => [...prev, newUserMessage])
 
     try {
-      const result = await queryBackend(text, sessionId)
+      const result = await queryBackend(text, sid)
 
       // Assuming backend returns { response: "..." }
       const responseContent = result.answer || 'No response from server'
@@ -82,6 +130,21 @@ export default function ChatLayout() {
         }
       ])
     }
+  }
+
+  const handleSendMessage = (text: string) => sendMessage(text, sessionId)
+
+  // Chips answer instantly from curated content; no LLM call, no rate-limit usage
+  const handleShowChart = (id: ChartId) => {
+    const meta = getChart(id)
+    if (!meta) return
+    setIsStarted(true)
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: meta.question },
+      { role: 'assistant', content: chartMarker(id) }
+    ])
+    saveChartMessage(sessionId, id).catch(error => console.error('Failed to save chart message:', error))
   }
 
   return (
@@ -103,6 +166,45 @@ export default function ChatLayout() {
         </div>
       </div>
 
+      {/* Explore: all chart topics, once the chat has started */}
+      {isStarted && (
+        <div className="fixed top-5 right-5 z-50 sm:right-8">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-zinc-900/80 px-4 text-sm text-zinc-300 backdrop-blur-xl transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-[#10a37f]"
+              >
+                <Compass className="size-4" aria-hidden />
+                Explore
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-64 bg-zinc-900/95 border-white/10 text-zinc-100 backdrop-blur-xl rounded-2xl p-2 z-50"
+            >
+              {CHARTS.map(c => (
+                <DropdownMenuItem
+                  key={c.id}
+                  onClick={() => handleShowChart(c.id)}
+                  className="flex items-baseline gap-3 rounded-xl focus:bg-white/10 cursor-pointer px-2 py-2"
+                >
+                  <span className="chapter-num text-xs text-[#10a37f]">{c.chapter}</span>
+                  <span>{c.title}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuItem asChild className="flex items-center gap-2 rounded-xl focus:bg-white/10 cursor-pointer px-2 py-2">
+                <Link href="/about">
+                  <BookOpen size={16} />
+                  <span>Open full profile</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
       {/* Messages Area */}
       <div
         className={cn(
@@ -110,7 +212,7 @@ export default function ChatLayout() {
           isStarted ? 'opacity-100' : 'opacity-0 invisible'
         )}
       >
-        <div className="mx-auto max-w-4xl space-y-8 px-4">
+        <div className="mx-auto max-w-4xl space-y-8 px-4 pt-12">
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -121,17 +223,13 @@ export default function ChatLayout() {
             >
               <div
                 className={cn(
-                  'max-w-[85%] rounded-2xl px-5 py-3 text-[15px] leading-relaxed markdown-content',
+                  'rounded-2xl px-5 py-3 text-[15px] leading-relaxed markdown-content',
                   msg.role === 'user'
-                    ? 'bg-[#2f2f2f] text-white text-left'
-                    : 'bg-transparent text-zinc-100'
+                    ? 'max-w-[85%] bg-[#2f2f2f] text-white text-left'
+                    : 'w-full max-w-full bg-transparent text-zinc-100'
                 )}
               >
-                {msg.role === 'assistant' ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                ) : (
-                  msg.content
-                )}
+                {msg.role === 'assistant' ? <AssistantMessage content={msg.content} /> : msg.content}
               </div>
             </div>
           ))}
@@ -158,6 +256,32 @@ export default function ChatLayout() {
           sessionId={sessionId}
           isInitial={!isStarted}
         />
+        {!isStarted && (
+          <div className="-mt-14 mb-6 flex max-w-3xl flex-wrap justify-center gap-2 px-4 animate-in fade-in duration-700">
+            {HERO_CHART_IDS.map(id => {
+              const meta = getChart(id)!
+              const Icon = CHIP_ICONS[id]!
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleShowChart(id)}
+                  className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm text-zinc-300 transition-colors duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-[#10a37f]"
+                >
+                  <Icon className="size-4 text-[#10a37f]" aria-hidden />
+                  {meta.navLabel === 'Looking for' ? "What I'm looking for" : meta.title}
+                </button>
+              )
+            })}
+            <Link
+              href="/about"
+              className="flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm text-zinc-400 underline-offset-4 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-[#10a37f]"
+            >
+              See my full profile
+              <ArrowUpRight className="size-4" aria-hidden />
+            </Link>
+          </div>
+        )}
       </div>
     </main>
   )
