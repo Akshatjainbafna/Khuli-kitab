@@ -148,7 +148,8 @@ export default function ChatLayout() {
   }
 
   return (
-    <main className="relative flex h-screen w-full flex-col items-center bg-[#0d0d0d]">
+    // h-dvh + overflow-hidden keep the page itself from scrolling; only the message list scrolls
+    <main className="relative flex h-dvh w-full flex-col items-center overflow-hidden bg-[#0d0d0d]">
       {/* Top Left Logo */}
       <div className="fixed top-6 left-8 z-50 items-center gap-2 select-none group cursor-default">
         <div className="text-lg font-medium tracking-tight text-zinc-100 group-hover:text-white transition-colors">
@@ -208,7 +209,8 @@ export default function ChatLayout() {
       {/* Messages Area */}
       <div
         className={cn(
-          'flex-1 w-full overflow-y-auto pt-8 pb-32 transition-opacity duration-700',
+          // min-h-0 lets this flex child shrink below its content height so it scrolls instead of growing
+          'min-h-0 flex-1 w-full overflow-y-auto pt-8 pb-40 transition-opacity duration-700',
           isStarted ? 'opacity-100' : 'opacity-0 invisible'
         )}
       >

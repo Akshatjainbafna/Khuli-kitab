@@ -352,3 +352,20 @@ html {
     scroll-behavior: auto !important;
   }
 }
+
+/* Charts embedded in chat answers sit inside .markdown-content; undo the prose styles for them */
+.markdown-content figure ul,
+.markdown-content figure ol {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.markdown-content figure li {
+  margin-bottom: 0;
+}
+
+.markdown-content figure blockquote {
+  font-style: normal;
+  margin-bottom: 0;
+}
