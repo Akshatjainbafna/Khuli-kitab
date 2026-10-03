@@ -55,10 +55,15 @@ export default function ChatLayout() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isStarted, setIsStarted] = useState(false)
   const [sessionId, setSessionId] = useState<string>('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  // Scroll only the message list container. scrollIntoView would also scroll
+  // ancestor scroll containers (overflow-hidden is still programmatically
+  // scrollable), which drags the chat bar up with it.
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = scrollContainerRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }
 
   useEffect(() => {
@@ -208,6 +213,7 @@ export default function ChatLayout() {
 
       {/* Messages Area */}
       <div
+        ref={scrollContainerRef}
         className={cn(
           // min-h-0 lets this flex child shrink below its content height so it scrolls instead of growing
           'min-h-0 flex-1 w-full overflow-y-auto pt-8 pb-40 transition-opacity duration-700',
@@ -235,7 +241,6 @@ export default function ChatLayout() {
               </div>
             </div>
           ))}
-          <div ref={messagesEndRef} />
         </div>
       </div>
 
